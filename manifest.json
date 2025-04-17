@@ -1,0 +1,19 @@
+{
+    "settings": {
+        "title": "灯光配置",
+        "version": 1,
+        "sections": [
+            {
+                "title": "基本设置",
+                "items": [
+                    {
+                        "type": "switch",
+                        "key": "dark_mode",
+                        "title": "夜间模式",
+                        "default": false
+                    }
+                ]
+            }
+        ]
+    }
+}
