@@ -5,7 +5,8 @@ import threading
 import logging
 import os
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.getLevelName(os.getenv("LOG_LEVEL", 'ERROR')),
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 rpc_logger = logging.getLogger('rpc')
 
 class RpcClientMeta(type):
@@ -204,7 +205,7 @@ class RpcObject:
             raise RpcError(f"RPC client not set")
         return self.rpc_client.create_instance(class_name, constructor_params)["instanceId"]
 
-    def call_method(self, method_name, params = []):
+    def call_method(self, method_name, *params):
         """调用实例方法"""
         instance_id = self.get_instance_id()
         if self.rpc_client is None or instance_id is None:

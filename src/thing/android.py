@@ -32,11 +32,11 @@ class Intent(rpc.RpcObject):
 
     def set_flags(self, flags):
         """设置标志位"""
-        return self.call_method("setFlags", [flags])
+        return self.call_method("setFlags", flags)
 
     def set_data(self, uri):
         """设置数据URI"""
-        return self.call_method("setData", [uri])
+        return self.call_method("setData", uri)
 
 
 class FlashLight(rpc.RpcObject):
@@ -71,7 +71,7 @@ class AndroidDevice(rpc.RpcObject):
         flash_light.close()
 
     def start_activity(self, intent: Intent):
-        self.call_method("startActivity", [intent])
+        self.call_method("startActivity", intent)
 
 
 def test_flashlight():
