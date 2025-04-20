@@ -362,7 +362,7 @@ class Thing:
         """
         key = config_json.get("key")
         value = config_json.get("value")
-        if not key or not value:
+        if not key:
             core_log.debug(f"Invalid config: {config_json}")
             return False
         if hasattr(self, f"config_{key}") and callable(getattr(self, f"config_{key}")):
