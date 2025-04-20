@@ -6,5 +6,6 @@
     "description": "Smart lamp/Flashlight",
     "iconUrl": "https://share.axyz.cc/xiaozhi/plugin/plugin_light.jpeg",
     "author": "未知",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "settings": true
 }

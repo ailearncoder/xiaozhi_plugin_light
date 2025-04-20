@@ -1,7 +1,9 @@
 try:
     from . import rpc
+    from . import config
 except ImportError:
     import rpc  # Fallback for direct execution
+    import config
 
 from dataclasses import dataclass
 from typing import List, Dict
@@ -66,9 +68,20 @@ class Live2D(rpc.RpcObject):
                 "cc.axyz.xiaozhi.rpc.model.Live2D", "Companion"
             )
         return self.instance_id
-
-
-if __name__ == '__main__':
+    
+    def get_config(self):
+        info = self.info()
+        conf = config.AppConfig("Live2D配置")
+        section = config.ConfigSection("当前形象")
+        conf.add_section(section)
+        single = config.SingleChoiceItem(key='plugin_live2d_model',
+                                         title='选择模型',
+                                         options=info.modelDirs,
+                                         default=info.modelDirs.index(info.currentModelName))
+        section.add_item(single)
+        return conf.to_json()
+    
+def test_live_2d():
     import time
     live_2d = Live2D()
     print(live_2d.info())
@@ -89,3 +102,7 @@ if __name__ == '__main__':
     live_2d.add_custom_update_params([Param('ParamAngleZ', 60)])
     time.sleep(1)
     live_2d.remove_custom_update_param([Param('ParamAngleX'), Param('ParamAngleY'), Param('ParamAngleZ')])
+
+if __name__ == '__main__':
+    live_2d = Live2D()
+    print(live_2d.get_config())

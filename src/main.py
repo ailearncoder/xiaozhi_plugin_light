@@ -11,8 +11,7 @@ class Light(Thing):
         self._power = False
         self._online = True
         self._device = AndroidDevice()
-        super().__init__("🔦 手电筒", "手机上的闪光灯模拟手电筒的功能", 
-                         "Light", "Smart lamp/Flashlight")
+        super().__init__()
     
     @property_def("Current brightness", PropertyType.NUMBER)
     def brightness(self):

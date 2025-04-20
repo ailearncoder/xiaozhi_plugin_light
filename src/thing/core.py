@@ -38,8 +38,8 @@ class PropertyValueError(ValueError):
 
 class Thing:
     def __init__(self, 
-                 title: str, summary: str,
-                 name: str, description: str,
+                 title: str = None, summary: str = None,
+                 name: str = None, description: str = None,
                  host: str = "127.0.0.1", port: int = 80):
         """
         初始化类实例。
@@ -52,6 +52,15 @@ class Thing:
             host (str, optional): 主机地址，默认为 "127.0.0.1"。
             port (int, optional): 端口号，默认为 80。
         """
+        if os.path.exists("../install.json"):
+            with open("../install.json", "r") as f:
+                install_info = json.load(f)
+                self.title = install_info.get("title", title)
+                self.summary = install_info.get("summary", summary)
+                self.name = install_info.get("name", name)
+                self.description = install_info.get("description", description)
+        if not title or not summary or not name or not description:
+            raise ValueError("title, summary, name, and description must be provided")
         self.title = title
         self.summary = summary
         self.name = name

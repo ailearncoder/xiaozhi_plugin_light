@@ -1,16 +1,71 @@
 {
     "settings": {
-        "title": "灯光配置",
+        "title": "智能灯设置",
         "version": 1,
         "sections": [
             {
-                "title": "基本设置",
+                "title": "基本控制",
                 "items": [
                     {
                         "type": "switch",
-                        "key": "dark_mode",
-                        "title": "夜间模式",
+                        "key": "power",
+                        "title": "电源开关",
                         "default": false
+                    },
+                    {
+                        "type": "slider",
+                        "key": "brightness",
+                        "title": "亮度调节",
+                        "min": 0,
+                        "max": 100,
+                        "step": 5,
+                        "default": 50
+                    },
+                    {
+                        "type": "single_choice",
+                        "key": "color_mode",
+                        "title": "颜色模式",
+                        "options": [
+                            "白光",
+                            "暖光",
+                            "彩色模式"
+                        ],
+                        "default": 0
+                    }
+                ]
+            },
+            {
+                "title": "高级设置",
+                "items": [
+                    {
+                        "type": "multi_choice",
+                        "key": "schedules",
+                        "title": "定时任务",
+                        "options": [
+                            "工作日",
+                            "周末",
+                            "节假模式"
+                        ],
+                        "default": [
+                            0
+                        ]
+                    },
+                    {
+                        "type": "number",
+                        "key": "color_temp",
+                        "title": "色温调节",
+                        "min": 2700,
+                        "max": 6500,
+                        "step": 100,
+                        "default": 4000
+                    },
+                    {
+                        "type": "text",
+                        "key": "schedule_time",
+                        "title": "定时设置",
+                        "hint": "格式：HH:MM-HH:MM",
+                        "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+                        "default": "19:00-23:30"
                     }
                 ]
             }
