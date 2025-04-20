@@ -311,7 +311,7 @@ class AppConfig:
             for callback in self._callbacks[key]:
                 callback(value)
     
-    def to_json(self, indent=2) -> str:
+    def to_json(self) -> str:
         config = {
             "title": self.title,
             "version": self.version,
@@ -323,7 +323,10 @@ class AppConfig:
                 for section in self.sections
             ]
         }
-        return json.dumps(config, ensure_ascii=False, indent=indent)
+        return config
+
+    def to_json_str(self, indent=2) -> str:
+        return json.dumps(self.to_json(), ensure_ascii=False, indent=indent)
 
     @classmethod
     def from_json(cls, json_str: str) -> 'AppConfig':
@@ -331,14 +334,16 @@ class AppConfig:
             data = json.loads(json_str)
         except json.JSONDecodeError as e:
             raise ValueError("Invalid JSON format") from e
+        return AppConfig.from_obj(data)
 
+    @classmethod
+    def from_obj(cls, data: Dict) -> 'AppConfig':
         required_top = {'title', 'version', 'sections'}
         missing_top = required_top - data.keys()
         if missing_top:
             raise ValueError(f"Missing top-level fields: {missing_top}")
         
         app_config = cls(title=data['title'], version=data['version'])
-        
         for section_data in data['sections']:
             if 'title' not in section_data:
                 raise ValueError("Section missing title")

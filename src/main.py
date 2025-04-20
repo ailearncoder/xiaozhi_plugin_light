@@ -1,8 +1,12 @@
+from ast import Dict
 from thing.core import Thing, property_def, method_def, PropertyType
 from thing.plugins import AndroidDevice
+from thing import AppConfig
 from typing import Tuple
 import time
+import json
 import sys
+import os
 
 class Light(Thing):
     def __init__(self):
@@ -65,6 +69,14 @@ class Light(Thing):
     def setEnabled(self, enabled) -> Tuple[bool, str]:
         print(f"Setting enabled to {enabled}")
         return super().setEnabled(enabled)
+
+    def config_power(self, power):
+        print(f"Configuring power to {power}")
+        return True
+
+    def config_brightness(self, brightness):
+        print(f"Configuring brightness to {brightness}")
+        return True
 
 # Usage
 if __name__ == "__main__":

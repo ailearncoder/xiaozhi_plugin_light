@@ -1,10 +1,9 @@
 from .core import Thing, property_def, method_def
-# from .android import AndroidDevice
-# from .config import AppConfig
-# from .live2d import Live2D
+from .config import AppConfig
 
 __all__ = [
     'Thing',
+    'AppConfig',
     'property_def',
     'method_def',
 ]

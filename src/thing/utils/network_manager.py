@@ -1,6 +1,7 @@
 import socket
 import threading
 from typing import Callable, Any
+import logging
 
 class NetworkManager:
     def __init__(self, host: str, port: int):
@@ -36,6 +37,7 @@ class NetworkManager:
         if not self.connected or not self.socket:
             return False
         try:
+            logging.debug(f"Sending data: {len(data)}: {data}")
             self.socket.sendall(data)
             return True
         except Exception as e:

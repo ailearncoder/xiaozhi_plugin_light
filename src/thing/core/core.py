@@ -9,6 +9,8 @@ from enum import Enum, auto
 import os
 import logging
 
+from ..config import AppConfig
+
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 core_log = logging.getLogger('core')
@@ -40,7 +42,7 @@ class Thing:
             port (int, optional): 端口号，默认为 80。
         """
         if os.path.exists("install.json"):
-            logging.debug("Found install.json, using it to initialize the class")
+            core_log.debug("Found install.json, using it to initialize the class")
             with open("install.json", "r") as f:
                 install_info:Dict = json.load(f)
                 title = install_info.get("title", title)
@@ -49,6 +51,12 @@ class Thing:
                 description = install_info.get("description", description)
         if not all([title, summary, name, description]):
             raise ValueError("title, summary, name, and description must be provided")
+        self._config = None
+        if os.path.exists('manifest.json'):
+            with open('manifest.json', 'r') as f:
+                mainfest:Dict = json.load(f)
+                self._config = AppConfig.from_obj(mainfest["settings"])
+                core_log.debug(f"Loaded config: manifest.json")
         self.title = title
         self.summary = summary
         self.name = name
@@ -157,7 +165,10 @@ class Thing:
             "properties": self.properties,
             "methods": self.methods
         }
-        self.send_json({"action": "register", "type": 1, "plugin": plugin})
+        install = None
+        with open("install.json") as f:
+            install = json.load(f)
+        self.send_json({"action": "register", "type": 1, "plugin": plugin, "install": install})
 
     def _handle_raw_message(self, raw_data: bytes):
         """处理原始网络数据"""
@@ -203,6 +214,12 @@ class Thing:
                     self._handle_call_method(json_data, uuid)
                 elif action == "setPluginEnabled":
                     self._handle_set_enabled(json_data, uuid)
+                elif action == "getPluginConfig":
+                    self._handle_get_config(json_data, uuid)
+                elif action == "setPluginConfig":
+                    self._handle_set_config(json_data, uuid)
+                elif action == "savePluginConfig":
+                    self._handle_save_config(json_data, uuid)
             except Exception as e:
                 print(f"Message processing error: {e}")
         elif isinstance(message, ParsedMessage.BinaryMessage):
@@ -272,6 +289,40 @@ class Thing:
             if success:
                 self._enable = enabled
 
+    def _handle_get_config(self, json_data:Dict, uuid):
+        """Handle get config requests."""
+        plugin_name = json_data.get("pluginName")
+        if plugin_name == self.name:
+            self.send_json({
+                "uuid": uuid,
+                "configJson": self.getConfig()
+            })
+
+    def _handle_set_config(self, json_data:Dict, uuid):
+        """Handle set config requests."""
+        plugin_name = json_data.get("pluginName")
+        if plugin_name == self.name:
+            config_json = json_data.get("configJson")
+            self.send_json({
+                "uuid": uuid,
+                "success": self.setConfig(config_json)
+            })
+
+    def _handle_save_config(self, json_data:Dict, uuid):
+        """Handle save config requests."""
+        plugin_name = json_data.get("pluginName")
+        if plugin_name == self.name:
+            if self._config:
+                with open('manifest.json') as f:
+                    mainfest:Dict = json.load(f)
+                mainfest["settings"] = self._config.to_json()
+                with open('manifest.json', 'w') as f:
+                    json.dump(mainfest, f, ensure_ascii=False, indent=4)
+            self.send_json({
+                "uuid": uuid,
+                "success": True
+            })
+
     def _on_error(self, error):
         """Handle parser errors."""
         print(f"Parser error: {error}")
@@ -290,6 +341,36 @@ class Thing:
 
         """
         return True, "ok"
+
+    def getConfig(self) -> Dict:
+        """
+        获取配置信息，由手机发起
+        Returns:
+            Dict: 配置信息字典。
+        """
+        if self._config:
+            return self._config.to_json()
+        return {}
+
+    def setConfig(self, config_json:Dict) -> bool:
+        """
+        设置配置信息，由手机发起
+        Args:
+            config_json (Dict): 配置信息字典。
+        Returns:
+            bool: 操作结果, True 表示操作成功, False 表示操作失败。
+        """
+        key = config_json.get("key")
+        value = config_json.get("value")
+        if not key or not value:
+            core_log.debug(f"Invalid config: {config_json}")
+            return False
+        if hasattr(self, f"config_{key}") and callable(getattr(self, f"config_{key}")):
+            if getattr(self, f"config_{key}")(value):
+                self._config.handle_update(key, value)
+                return True
+        core_log.debug(f"cant find config_{key} function")
+        return False
 
     def get_definition(self):
         return json.dumps({
