@@ -1,6 +1,6 @@
 try:
-    from . import rpc
-    from . import config
+    from .. import rpc
+    from .. import config
 except ImportError:
     import rpc  # Fallback for direct execution
     import config
@@ -25,7 +25,7 @@ class Info:
             live2dShow=data['live2dShow'],
             modelDirs=data['modelDirs'],
             currentModelName=data['currentModelName'],
-            allMotions={k: v for k, v in data['allMotions'].items()},
+            allMotions=data['allMotions'],
             allExpressions=data['allExpressions']
         )
 

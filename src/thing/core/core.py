@@ -15,26 +15,13 @@ core_log = logging.getLogger('core')
 
 # Import the protocol module
 try:
-    from . import protocol
+    from ..protocol import MessageParser, ParsedMessage, serialize_obj
+    from ..utils import NetworkManager, PropertyTypeError, PropertyValueError
+    from .decorators import property_def, method_def, PropertyType
 except ImportError:
-    import protocol  # Fallback for direct execution
-
-# Define property types using an enum for better IDE support and type checking
-class PropertyType(Enum):
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    STRING = "string"
-    
-    def __str__(self):
-        return self.value
-
-class PropertyTypeError(TypeError):
-    """Exception raised when a property has an invalid type."""
-    pass
-
-class PropertyValueError(ValueError):
-    """Exception raised when a property returns an invalid value."""
-    pass
+    from protocol import MessageParser, ParsedMessage, serialize_obj # Fallback for direct execution
+    from utils import NetworkManager, PropertyTypeError, PropertyValueError
+    from decorators import property_def, method_def, PropertyType
 
 class Thing:
     def __init__(self, 
@@ -52,14 +39,15 @@ class Thing:
             host (str, optional): 主机地址，默认为 "127.0.0.1"。
             port (int, optional): 端口号，默认为 80。
         """
-        if os.path.exists("../install.json"):
-            with open("../install.json", "r") as f:
-                install_info = json.load(f)
-                self.title = install_info.get("title", title)
-                self.summary = install_info.get("summary", summary)
-                self.name = install_info.get("name", name)
-                self.description = install_info.get("description", description)
-        if not title or not summary or not name or not description:
+        if os.path.exists("install.json"):
+            logging.debug("Found install.json, using it to initialize the class")
+            with open("install.json", "r") as f:
+                install_info:Dict = json.load(f)
+                title = install_info.get("title", title)
+                summary = install_info.get("summary", summary)
+                name = install_info.get("name", name)
+                description = install_info.get("description", description)
+        if not all([title, summary, name, description]):
             raise ValueError("title, summary, name, and description must be provided")
         self.title = title
         self.summary = summary
@@ -67,7 +55,8 @@ class Thing:
         self.description = description
         self.host = os.getenv("THING_HOST", host)
         self.port = int(os.getenv("THING_PORT", port))
-        self.socket = None
+        self.network = NetworkManager(self.host, self.port)
+        self.parser = MessageParser(self._on_message, self._on_error)
         self.connected = False
         self.properties = {}
         self.methods = {}
@@ -150,87 +139,52 @@ class Thing:
         else:
             raise PropertyTypeError(f"Unknown property type: {prop_type}")
 
+    def _send_registration(self):
+        """Send the registration message to the server."""
+        plugin = {
+            "title": self.title,
+            "summary": self.summary,
+            "name": self.name,
+            "description": self.description,
+            "properties": self.properties,
+            "methods": self.methods
+        }
+        self.send_json({"action": "register", "type": 1, "plugin": plugin})
+
+    def _handle_raw_message(self, raw_data: bytes):
+        """处理原始网络数据"""
+        self.parser.process_data(raw_data)
+
+    def _on_network_error(self, error: Exception):
+        """网络错误处理"""
+        print(f"Network error: {error}")
+        self.network.disconnect()
+
     def connect(self):
         """Connect to the server and register this thing."""
-        try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect((self.host, self.port))
-            self.connected = True
-
-            # Create the plugin definition
-            plugin = {
-                "title": self.title,
-                "summary": self.summary,
-                "name": self.name,
-                "description": self.description,
-                "properties": self.properties,
-                "methods": self.methods
-            }
-
-            # Register with the server
-            self.send_json({"action": "register", "type": 1, "plugin": plugin})
-
-            # Start message handling in a separate thread
-            self._connection_thread = threading.Thread(target=self._handle_messages)
-            self._connection_thread.daemon = True
-            self._connection_thread.start()
-
+        if self.network.connect():
+            self.network.start_message_handling(
+                self._handle_raw_message,
+                self._on_network_error
+            )
+            # 发送注册信息
+            self._send_registration()
             return True
-        except Exception as e:
-            print(f"Connection error: {e}")
-            self.connected = False
-            return False
+        return False
 
     def disconnect(self):
         """Disconnect from the server."""
-        if self.connected and self.socket:
-            self.socket.close()
-            self.connected = False
-
-    def send_data(self, data: bytes):
-        """Send binary data to the server."""
-        if not self.connected:
-            return False
-
-        send_data = bytearray()
-        send_data.append(1)
-        send_data.extend(struct.pack("<I", len(data)))
-        send_data.extend(data)
-        try:
-            self.socket.sendall(send_data)
-            return True
-        except Exception as e:
-            print(f"Send error: {e}")
-            self.connected = False
-            return False
+        self.network.disconnect()
 
     def send_json(self, data: dict):
         """Send JSON data to the server."""
-        return self.send_data(json.dumps(data).encode())
-
-    def _handle_messages(self):
-        """Handle incoming messages from the server."""
-        parser = protocol.MessageParser(self._on_message, self._on_error)
-
-        while self.connected:
-            try:
-                data = self.socket.recv(1024)
-                if not data:
-                    self.connected = False
-                    break
-                parser.process_data(data)
-            except Exception as e:
-                print(f"Message handling error: {e}")
-                self.connected = False
-                break
-
-        print("Connection closed")
+        return self.network.send_data(serialize_obj(data))
 
     def _on_message(self, message):
         """Handle parsed messages."""
-        if isinstance(message, protocol.ParsedMessage.TextMessage):
+        if isinstance(message, ParsedMessage.TextMessage):
             try:
-                json_data = json.loads(message.text)
+                json_data:Dict = json.loads(message.text)
                 core_log.debug(f"Received message: {json_data}")
                 uuid = json_data.get("uuid")
                 action = json_data.get("action")
@@ -243,10 +197,10 @@ class Thing:
                     self._handle_set_enabled(json_data, uuid)
             except Exception as e:
                 print(f"Message processing error: {e}")
-        elif isinstance(message, protocol.ParsedMessage.BinaryMessage):
+        elif isinstance(message, ParsedMessage.BinaryMessage):
             print(f"Received binary message of length: {len(message.data)}")
 
-    def _handle_get_property(self, json_data, uuid):
+    def _handle_get_property(self, json_data:Dict, uuid):
         """Handle property get requests."""
         plugin_name = json_data.get("pluginName")
         property_name = json_data.get("propertyName")
@@ -272,7 +226,7 @@ class Thing:
                     "error": str(e)
                 })
 
-    def _handle_call_method(self, json_data, uuid):
+    def _handle_call_method(self, json_data:Dict, uuid):
         """Handle method call requests."""
         plugin_name = json_data.get("pluginName")
         method_name = json_data.get("methodName")
@@ -300,7 +254,7 @@ class Thing:
                 })
                 core_log.error(f"Error calling method {method_name}", exc_info=True)
 
-    def _handle_set_enabled(self, json_data, uuid):
+    def _handle_set_enabled(self, json_data:Dict, uuid):
         """Handle set enabled requests."""
         plugin_name = json_data.get("pluginName")
         enabled = json_data.get("enabled")
@@ -337,54 +291,4 @@ class Thing:
             "description": self.description,
             "properties": self.properties,
             "methods": self.methods,
-        })
-
-
-# Enhanced property decorator with type validation using enums
-def property_def(description: str, property_type: PropertyType):
-    """
-    Decorator for defining a property of a Thing.
-    
-    Args:
-        description: Human-readable description of the property
-        property_type: Type of the property, must be a PropertyType enum value
-    
-    Raises:
-        PropertyTypeError: If property_type is not a PropertyType enum value
-    """
-    if not isinstance(property_type, PropertyType):
-        raise PropertyTypeError(f"Property type must be a PropertyType enum value, got {type(property_type).__name__}")
-    
-    def decorator(func):
-        func._thing_property = {
-            "description": description,
-            "type": property_type
-        }
-        return func
-    return decorator
-
-# Enhanced method decorator with parameter type validation using enums
-def method_def(description: str, parameters: Dict[str, Dict[str, Any]]):
-    """
-    Decorator for defining a method of a Thing.
-    
-    Args:
-        description: Human-readable description of the method
-        parameters: Dictionary of parameter specs with their types and descriptions
-    
-    Raises:
-        PropertyTypeError: If any parameter type is invalid
-    """
-    # Validate parameter types
-    for param_name, param_spec in parameters.items():
-        if "type" in param_spec and not isinstance(param_spec["type"], PropertyType):
-            raise PropertyTypeError(f"Parameter type for {param_name} must be a PropertyType enum value, "
-                                    f"got {type(param_spec['type']).__name__}")
-    
-    def decorator(func):
-        func._thing_method = {
-            "description": description,
-            "parameters": parameters
-        }
-        return func
-    return decorator
+        }, ensure_ascii = False, indent=4)

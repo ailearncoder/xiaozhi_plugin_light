@@ -1,7 +1,7 @@
-from thing import Thing, property_def, method_def, PropertyType
-from thing import AndroidDevice
-import time
+from thing.core import Thing, property_def, method_def, PropertyType
+from thing.plugins import AndroidDevice
 from typing import Tuple
+import time
 import sys
 
 class Light(Thing):

@@ -1,5 +1,5 @@
 try:
-    from . import rpc
+    from .. import rpc
 except ImportError:
     import rpc  # Fallback for direct execution
 

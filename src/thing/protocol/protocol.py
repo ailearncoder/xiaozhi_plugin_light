@@ -1,5 +1,6 @@
 import enum
 import struct
+import json
 from typing import Callable, Union, Optional, List, Tuple
 
 class MessageType(enum.IntEnum):
@@ -13,6 +14,31 @@ class MessageType(enum.IntEnum):
             return cls(value)
         except ValueError:
             raise ValueError(f"Unknown message type: {value}")
+
+def serialize(message: [str | bytes], type: MessageType = None) -> bytes:
+    send_data = bytearray()
+    if type is None:
+        if isinstance(message, str):
+            type = MessageType.TEXT
+            send_data.extend(message.encode('utf-8'))
+        elif isinstance(message, bytes):
+            type = MessageType.BINARY
+            send_data.extend(message)
+        else:
+            raise ValueError("Invalid message type")
+    data = bytearray()
+    data.append(type.value)
+    data.extend(struct.pack("<I", len(send_data)))
+    data.extend(send_data)
+    return data
+
+def serialize_obj(obj: [dict | list]) -> bytes:
+    if isinstance(obj, dict):
+        return serialize(json.dumps(obj, ensure_ascii=False))
+    elif isinstance(obj, list):
+        return serialize(json.dumps(obj, ensure_ascii=False))
+    else:
+        raise ValueError("Invalid object type")
 
 class ParsedMessage:
     """解析后的消息结构"""
