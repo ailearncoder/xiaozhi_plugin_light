@@ -57,7 +57,6 @@ class Thing:
         self.port = int(os.getenv("THING_PORT", port))
         self.network = NetworkManager(self.host, self.port)
         self.parser = MessageParser(self._on_message, self._on_error)
-        self.connected = False
         self.properties = {}
         self.methods = {}
         self._property_getters = {}
@@ -67,6 +66,15 @@ class Thing:
 
         # Register decorated properties and methods
         self._register_decorated_items()
+
+    @property
+    def connected(self) -> bool:
+        """
+        检查是否已连接到服务器。
+        Returns:
+            bool: 如果已连接则返回 True，否则返回 False。
+        """
+        return self.network.connected
 
     def _register_decorated_items(self):
         """Register properties and methods defined using decorators."""
