@@ -1,5 +1,5 @@
 {
-    "id": "custom_123466",
+    "id": "plugin_light",
     "title": "🔦 手电筒",
     "summary": "手机上的闪光灯模拟手电筒的功能",
     "name": "Light",
@@ -7,5 +7,6 @@
     "iconUrl": "https://share.axyz.cc/xiaozhi/plugin/plugin_light.jpeg",
     "author": "未知",
     "version": "1.0.0",
-    "settings": true
+    "settings": true,
+    "type":"standalone"
 }
