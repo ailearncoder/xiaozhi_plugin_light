@@ -1,0 +1,3 @@
+[submodule "src/thing"]
+	path = src/thing
+	url = https://github.com/ailearncoder/xiaozhi_plugin_core.git
